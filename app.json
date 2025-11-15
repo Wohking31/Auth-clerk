@@ -3,7 +3,7 @@
     "name": "my-app",
     "slug": "my-app",
     "version": "1.0.0",
-     "plugins": [
+    "plugins": [
       [
         "expo-camera",
         {
@@ -15,7 +15,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to show places near you."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "orientation": "default",
     "icon": "./assets/icon.png",
