@@ -1,4 +1,6 @@
-import React from "react";
+// screens/auth/SignUpScreen.jsx - WITH CLERK AUTHENTICATION & VERIFICATION
+
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -6,12 +8,14 @@ import {
   TouchableOpacity,
   TextInput,
   ScrollView,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useSignUp } from "@clerk/clerk-expo";
-import { useNavigation } from "@react-navigation/native";
+import colors from "../../constants/colors";
 
 // Email validation regex
 const validateEmail = (email) => {
@@ -21,34 +25,35 @@ const validateEmail = (email) => {
 
 // Password validation - at least 8 chars, one uppercase, one lowercase, one number
 const validatePassword = (password) => {
-  // regex function written by other devs which uses the password regex to validate the password entered
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
   return passwordRegex.test(password);
 };
 
-export default function SignUpScreen() {
+export default function SignUpScreen({ navigation }) {
   const { signUp, setActive, isLoaded } = useSignUp();
-  const navigation = useNavigation();
-  const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
-  const [firstName, setFirstName] = React.useState("");
-  const [lastName, setLastName] = React.useState("");
-  const [verificationCode, setVerificationCode] = React.useState("");
-  const [pendingVerification, setPendingVerification] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [showPassword, setShowPassword] = React.useState(false);
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [pendingVerification, setPendingVerification] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   // Field-level errors
-  const [firstNameError, setFirstNameError] = React.useState("");
-  const [lastNameError, setLastNameError] = React.useState("");
-  const [emailError, setEmailError] = React.useState("");
-  const [passwordError, setPasswordError] = React.useState("");
-  const [verificationError, setVerificationError] = React.useState("");
+  const [firstNameError, setFirstNameError] = useState("");
+  const [lastNameError, setLastNameError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
+  const [verificationError, setVerificationError] = useState("");
 
   // Validation functions
-
-  //   if nothing is entered in the input field, the fuction returns false and also if something is entered but less than 2 characters the function returns false
   const validateFirstNameField = () => {
     if (!firstName.trim()) {
       setFirstNameError("First name is required");
@@ -103,6 +108,19 @@ export default function SignUpScreen() {
     return true;
   };
 
+  const validateConfirmPasswordField = () => {
+    if (!confirmPassword) {
+      setConfirmPasswordError("Please confirm your password");
+      return false;
+    }
+    if (password !== confirmPassword) {
+      setConfirmPasswordError("Passwords do not match");
+      return false;
+    }
+    setConfirmPasswordError("");
+    return true;
+  };
+
   const validateVerificationCodeField = () => {
     if (!verificationCode.trim()) {
       setVerificationError("Verification code is required");
@@ -117,26 +135,30 @@ export default function SignUpScreen() {
   };
 
   // Step 1: Create the user account
-  const onSignUpPress = async () => {
+  const handleSignUp = async () => {
     setError("");
 
-    // Validate all fields
     const firstNameValid = validateFirstNameField();
     const lastNameValid = validateLastNameField();
     const emailValid = validateEmailField();
     const passwordValid = validatePasswordField();
+    const confirmPasswordValid = validateConfirmPasswordField();
 
-    if (!firstNameValid || !lastNameValid || !emailValid || !passwordValid) {
+    if (
+      !firstNameValid ||
+      !lastNameValid ||
+      !emailValid ||
+      !passwordValid ||
+      !confirmPasswordValid
+    ) {
       return;
     }
 
     if (!isLoaded) return;
 
-    // This ensures that you do NOT run any Clerk logic until the sign-up module is fully ready.
-
     setLoading(true);
     try {
-      // Create the user account with email and password
+      // Create the user account
       await signUp.create({
         emailAddress: email,
         password,
@@ -144,19 +166,25 @@ export default function SignUpScreen() {
         lastName: lastName.trim(),
       });
 
-      // Send verification code to user's email
+      // Send verification code
       await signUp.prepareEmailAddressVerification({ strategy: "email_code" });
 
-      // Show verification code input
+      // Show verification screen
       setPendingVerification(true);
     } catch (err) {
-      setError(err.errors?.[0]?.message || "Sign up failed");
+      const errorMessage =
+        err.errors?.[0]?.message || "Sign up failed. Please try again.";
+      setError(errorMessage);
+      Alert.alert("Sign Up Failed", errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Step 2: Verify the email address with the code
+  // Step 2: Verify the email with code
+
+  // In onVerifyPress function:
+
   const onVerifyPress = async () => {
     setError("");
 
@@ -168,80 +196,118 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
-      // Verify the email with the code the user entered
       const signUpAttempt = await signUp.attemptEmailAddressVerification({
         code: verificationCode,
       });
 
-      // If verification successful, set the session as active
       if (signUpAttempt.status === "complete") {
         await setActive({ session: signUpAttempt.createdSessionId });
-        // User is now signed up and signed in automatically
+        // Navigation happens automatically - DO NOT call navigation.reset()
       } else {
         console.log("Verification incomplete:", signUpAttempt);
       }
     } catch (err) {
-      setError(err.errors?.[0]?.message || "Verification failed");
+      const errorMessage = err.errors?.[0]?.message || "Verification failed";
+      setError(errorMessage);
+      Alert.alert("Verification Failed", errorMessage);
     } finally {
       setLoading(false);
     }
   };
 
-  // Show verification code input if we're waiting for verification
+  // Show verification code screen
   if (pendingVerification) {
     return (
-      // to make the keyboard not to cover the input field thats why we wrap keyboardAvoidingView
       <KeyboardAvoidingView
+        style={styles.container}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoidingView}
       >
         <ScrollView
-          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.content}>
+          {/* Back Button */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => setPendingVerification(false)}
+            disabled={loading}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+
+          {/* Header */}
+          <View style={styles.header}>
             <Text style={styles.title}>Verify Your Email</Text>
             <Text style={styles.subtitle}>
               We sent a verification code to {email}
             </Text>
+          </View>
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
+          {/* Error Message */}
+          {error ? (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={20} color="#DC2626" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Verification Code</Text>
+          {/* Verification Code Input */}
+          <View style={styles.form}>
+            <View
+              style={[
+                styles.inputContainer,
+                verificationError && styles.inputContainerError,
+              ]}
+            >
+              <Ionicons
+                name="key-outline"
+                size={20}
+                color={verificationError ? "#DC2626" : "#999"}
+                style={styles.inputIcon}
+              />
               <TextInput
-                style={[styles.input, verificationError && styles.inputError]}
+                style={styles.input}
+                placeholder="Enter 6-digit code"
+                placeholderTextColor="#999"
                 value={verificationCode}
                 onChangeText={(text) => {
                   setVerificationCode(text);
                   setVerificationError("");
+                  setError("");
                 }}
                 onBlur={validateVerificationCodeField}
-                placeholder="Enter 6-digit code"
-                placeholderTextColor="#9ca3af"
                 keyboardType="number-pad"
                 maxLength={6}
                 editable={!loading}
               />
-              {verificationError ? (
-                <Text style={styles.fieldError}>{verificationError}</Text>
-              ) : null}
             </View>
+            {verificationError ? (
+              <Text style={styles.fieldError}>{verificationError}</Text>
+            ) : null}
 
+            {/* Verify Button */}
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+              style={[
+                styles.primaryButton,
+                loading && styles.primaryButtonDisabled,
+              ]}
               onPress={onVerifyPress}
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color="white" />
               ) : (
-                <Text style={styles.buttonText}>Verify Email</Text>
+                <Text style={styles.primaryButtonText}>Verify Email</Text>
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => setPendingVerification(false)}>
-              <Text style={styles.backLink}>Back to Sign Up</Text>
+            {/* Back to Sign Up Link */}
+            <TouchableOpacity
+              style={styles.backToSignUpContainer}
+              onPress={() => setPendingVerification(false)}
+              disabled={loading}
+            >
+              <Text style={styles.backToSignUpText}>Back to Sign Up</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -252,130 +318,255 @@ export default function SignUpScreen() {
   // Show initial sign-up form
   return (
     <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      style={styles.keyboardAvoidingView}
     >
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join us today</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Back Button */}
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+          disabled={loading}
+        >
+          <Ionicons name="arrow-back" size={24} color={colors.text} />
+        </TouchableOpacity>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>Create account</Text>
+          <Text style={styles.subtitle}>Sign up to get started!</Text>
+        </View>
 
+        {/* Error Message */}
+        {error ? (
+          <View style={styles.errorContainer}>
+            <Ionicons name="alert-circle" size={20} color="#DC2626" />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {/* Input Fields */}
+        <View style={styles.form}>
           {/* First Name Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>First Name</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              firstNameError && styles.inputContainerError,
+            ]}
+          >
+            <Ionicons
+              name="person-outline"
+              size={20}
+              color={firstNameError ? "#DC2626" : "#999"}
+              style={styles.inputIcon}
+            />
             <TextInput
-              style={[styles.input, firstNameError && styles.inputError]}
-              placeholder="Enter your first name"
-              placeholderTextColor="#9ca3af"
+              style={styles.input}
+              placeholder="First name"
+              placeholderTextColor="#999"
               value={firstName}
               onChangeText={(text) => {
                 setFirstName(text);
                 setFirstNameError("");
+                setError("");
               }}
               onBlur={validateFirstNameField}
+              autoCapitalize="words"
               editable={!loading}
             />
-            {firstNameError ? (
-              <Text style={styles.fieldError}>{firstNameError}</Text>
-            ) : null}
           </View>
+          {firstNameError ? (
+            <Text style={styles.fieldError}>{firstNameError}</Text>
+          ) : null}
 
           {/* Last Name Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Last Name</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              lastNameError && styles.inputContainerError,
+            ]}
+          >
+            <Ionicons
+              name="person-outline"
+              size={20}
+              color={lastNameError ? "#DC2626" : "#999"}
+              style={styles.inputIcon}
+            />
             <TextInput
-              style={[styles.input, lastNameError && styles.inputError]}
-              placeholder="Enter your last name"
-              placeholderTextColor="#9ca3af"
+              style={styles.input}
+              placeholder="Last name"
+              placeholderTextColor="#999"
               value={lastName}
               onChangeText={(text) => {
                 setLastName(text);
                 setLastNameError("");
+                setError("");
               }}
               onBlur={validateLastNameField}
+              autoCapitalize="words"
               editable={!loading}
             />
-            {lastNameError ? (
-              <Text style={styles.fieldError}>{lastNameError}</Text>
-            ) : null}
           </View>
+          {lastNameError ? (
+            <Text style={styles.fieldError}>{lastNameError}</Text>
+          ) : null}
 
           {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
+          <View
+            style={[
+              styles.inputContainer,
+              emailError && styles.inputContainerError,
+            ]}
+          >
+            <Ionicons
+              name="mail-outline"
+              size={20}
+              color={emailError ? "#DC2626" : "#999"}
+              style={styles.inputIcon}
+            />
             <TextInput
-              style={[styles.input, emailError && styles.inputError]}
-              placeholder="Enter your email"
-              placeholderTextColor="#9ca3af"
+              style={styles.input}
+              placeholder="Email address"
+              placeholderTextColor="#999"
               value={email}
               onChangeText={(text) => {
                 setEmail(text);
                 setEmailError("");
+                setError("");
               }}
               onBlur={validateEmailField}
               keyboardType="email-address"
               autoCapitalize="none"
               editable={!loading}
             />
-            {emailError ? (
-              <Text style={styles.fieldError}>{emailError}</Text>
-            ) : null}
           </View>
+          {emailError ? (
+            <Text style={styles.fieldError}>{emailError}</Text>
+          ) : null}
 
           {/* Password Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordContainer}>
-              <TextInput
-                style={[
-                  styles.passwordInput,
-                  passwordError && styles.inputError,
-                ]}
-                placeholder="At least 8 chars, uppercase, lowercase, number"
-                placeholderTextColor="#9ca3af"
-                value={password}
-                onChangeText={(text) => {
-                  setPassword(text);
-                  setPasswordError("");
-                }}
-                onBlur={validatePasswordField}
-                secureTextEntry={!showPassword}
-                editable={!loading}
+          <View
+            style={[
+              styles.inputContainer,
+              passwordError && styles.inputContainerError,
+            ]}
+          >
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color={passwordError ? "#DC2626" : "#999"}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="#999"
+              value={password}
+              onChangeText={(text) => {
+                setPassword(text);
+                setPasswordError("");
+                setError("");
+              }}
+              onBlur={validatePasswordField}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              editable={!loading}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              disabled={loading}
+            >
+              <Ionicons
+                name={showPassword ? "eye-outline" : "eye-off-outline"}
+                size={20}
+                color="#999"
               />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.showPasswordButton}
-              >
-                <Text style={styles.showPasswordText}>
-                  {showPassword ? "Hide" : "Show"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            {passwordError ? (
-              <Text style={styles.fieldError}>{passwordError}</Text>
-            ) : null}
+            </TouchableOpacity>
           </View>
+          {passwordError ? (
+            <Text style={styles.fieldError}>{passwordError}</Text>
+          ) : null}
+
+          {/* Confirm Password Input */}
+          <View
+            style={[
+              styles.inputContainer,
+              confirmPasswordError && styles.inputContainerError,
+            ]}
+          >
+            <Ionicons
+              name="lock-closed-outline"
+              size={20}
+              color={confirmPasswordError ? "#DC2626" : "#999"}
+              style={styles.inputIcon}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm password"
+              placeholderTextColor="#999"
+              value={confirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                setConfirmPasswordError("");
+                setError("");
+              }}
+              onBlur={validateConfirmPasswordField}
+              secureTextEntry={!showConfirmPassword}
+              autoCapitalize="none"
+              editable={!loading}
+            />
+            <TouchableOpacity
+              onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+              disabled={loading}
+            >
+              <Ionicons
+                name={showConfirmPassword ? "eye-outline" : "eye-off-outline"}
+                size={20}
+                color="#999"
+              />
+            </TouchableOpacity>
+          </View>
+          {confirmPasswordError ? (
+            <Text style={styles.fieldError}>{confirmPasswordError}</Text>
+          ) : null}
 
           {/* Sign Up Button */}
           <TouchableOpacity
-            style={[styles.button, loading && styles.buttonDisabled]}
-            onPress={onSignUpPress}
+            style={[
+              styles.primaryButton,
+              loading && styles.primaryButtonDisabled,
+            ]}
+            onPress={handleSignUp}
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color="white" />
             ) : (
-              <Text style={styles.buttonText}>Create Account</Text>
+              <Text style={styles.primaryButtonText}>Sign up</Text>
             )}
           </TouchableOpacity>
 
-          {/* Sign In Link */}
-          <View style={styles.signInContainer}>
-            <Text style={styles.signInText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate("SignIn")}>
-              <Text style={styles.signInLink}>Sign In</Text>
+          {/* Google Sign Up Button */}
+          <TouchableOpacity
+            style={styles.googleButton}
+            disabled={loading}
+            onPress={() => Alert.alert("Google Sign Up", "Coming soon!")}
+          >
+            <Ionicons name="logo-google" size={20} color="#DB4437" />
+            <Text style={styles.googleButtonText}>Sign up using Google</Text>
+          </TouchableOpacity>
+
+          {/* Log In Link */}
+          <View style={styles.loginContainer}>
+            <Text style={styles.loginText}>Already member? </Text>
+            <TouchableOpacity
+              onPress={() => navigation.navigate("SignIn")}
+              disabled={loading}
+            >
+              <Text style={styles.loginLink}>Log in</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -385,128 +576,141 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  keyboardAvoidingView: {
-    flex: 1,
-  },
   container: {
     flex: 1,
-    backgroundColor: "#f9fafb",
-    paddingTop: 20,
+    backgroundColor: colors.background,
   },
-  content: {
+  scrollContent: {
+    flexGrow: 1,
     padding: 20,
-    minHeight: "100%",
+    paddingTop: 50,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  header: {
+    marginBottom: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: "bold",
+    color: colors.text,
     marginBottom: 8,
-    textAlign: "center",
-    color: "#1f2937",
   },
   subtitle: {
-    fontSize: 14,
-    color: "#6b7280",
-    textAlign: "center",
-    marginBottom: 30,
+    fontSize: 16,
+    color: "#999",
   },
-  inputGroup: {
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEE2E2",
+    padding: 12,
+    borderRadius: 12,
     marginBottom: 20,
+    gap: 8,
   },
-  label: {
+  errorText: {
+    flex: 1,
+    color: "#DC2626",
     fontSize: 14,
-    fontWeight: "600",
-    color: "#374151",
+  },
+  form: {
+    flex: 1,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
+  },
+  inputContainerError: {
+    borderColor: "#DC2626",
+    backgroundColor: "#FEF2F2",
+  },
+  inputIcon: {
+    marginRight: 12,
   },
   input: {
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    padding: 12,
+    flex: 1,
     fontSize: 16,
-    color: "#1f2937",
-    backgroundColor: "#fff",
-  },
-  inputError: {
-    borderColor: "#ef4444",
-    backgroundColor: "#fef2f2",
+    color: colors.text,
   },
   fieldError: {
-    color: "#ef4444",
+    color: "#DC2626",
     fontSize: 12,
-    marginTop: 6,
+    marginBottom: 12,
+    marginLeft: 4,
   },
-  passwordContainer: {
-    flexDirection: "row",
+  primaryButton: {
+    backgroundColor: colors.accent,
+    paddingVertical: 16,
+    borderRadius: 30,
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    backgroundColor: "#fff",
-  },
-  passwordInput: {
-    flex: 1,
-    padding: 12,
-    fontSize: 14,
-    color: "#1f2937",
-  },
-  showPasswordButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  showPasswordText: {
-    color: "#6366f1",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  button: {
-    backgroundColor: "#6366f1",
-    padding: 14,
-    borderRadius: 8,
-    marginVertical: 20,
     justifyContent: "center",
-    alignItems: "center",
-    minHeight: 50,
+    marginTop: 8,
+    marginBottom: 16,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+    minHeight: 56,
   },
-  buttonDisabled: {
+  primaryButtonDisabled: {
     opacity: 0.6,
   },
-  buttonText: {
-    color: "#fff",
-    textAlign: "center",
+  primaryButtonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "white",
+    paddingVertical: 16,
+    borderRadius: 30,
+    marginBottom: 24,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#E5E5E5",
+  },
+  googleButtonText: {
+    color: colors.text,
     fontSize: 16,
     fontWeight: "600",
   },
-  signInContainer: {
+  loginContainer: {
     flexDirection: "row",
     justifyContent: "center",
+    marginTop: 20,
+  },
+  loginText: {
+    fontSize: 16,
+    color: "#999",
+  },
+  loginLink: {
+    fontSize: 16,
+    color: colors.accent,
+    fontWeight: "600",
+  },
+  backToSignUpContainer: {
     alignItems: "center",
     marginTop: 20,
   },
-  signInText: {
-    color: "#6b7280",
-    fontSize: 14,
-  },
-  signInLink: {
-    color: "#6366f1",
-    fontSize: 14,
+  backToSignUpText: {
+    fontSize: 16,
+    color: colors.accent,
     fontWeight: "600",
-  },
-  backLink: {
-    color: "#6366f1",
-    textAlign: "center",
-    fontSize: 14,
-    fontWeight: "600",
-    marginTop: 20,
-  },
-  error: {
-    backgroundColor: "#fecaca",
-    color: "#991b1b",
-    padding: 12,
-    borderRadius: 6,
-    marginBottom: 20,
-    fontSize: 14,
-    overflow: "hidden",
   },
 });

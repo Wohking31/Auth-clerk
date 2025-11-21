@@ -1,0 +1,273 @@
+// App.tsx
+import React from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import OnboardingScreen from './src/screens/OnboardingScreen';
+import SignInScreen from './src/screens/auth/SignInScreen';
+import SignUpScreen from './src/screens/auth/SignUpScreen';
+import MainNavigator from './src/navigation/MainNavigator';
+
+const Stack = createNativeStackNavigator();
+
+export default function App() {
+  const isFirstLaunch = true; // Replace with AsyncStorage check
+  const isAuthenticated = false; // Replace with auth state
+
+  return (
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {isFirstLaunch && (
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        )}
+        {!isAuthenticated ? (
+          <>
+            <Stack.Screen name="SignIn" component={SignInScreen} />
+            <Stack.Screen name="SignUp" component={SignUpScreen} />
+          </>
+        ) : (
+          <Stack.Screen name="Main" component={MainNavigator} />
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+// src/navigation/MainNavigator.tsx
+import React from 'react';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Ionicons } from '@expo/vector-icons';
+import HomeScreen from '../screens/main/HomeScreen';
+import MenuScreen from '../screens/main/MenuScreen';
+import CartScreen from '../screens/main/CartScreen';
+import OrdersScreen from '../screens/main/OrdersScreen';
+import ProfileScreen from '../screens/main/ProfileScreen';
+import ProductDetailScreen from '../screens/main/ProductDetailScreen';
+import CheckoutScreen from '../screens/main/CheckoutScreen';
+
+const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
+
+function HomeStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="HomeMain" component={HomeScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function MenuStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="MenuMain" component={MenuScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ProductDetail" component={ProductDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function CartStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen name="CartMain" component={CartScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Checkout" component={CheckoutScreen} />
+    </Stack.Navigator>
+  );
+}
+
+export default function MainNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: any;
+          if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
+          else if (route.name === 'Menu') iconName = focused ? 'grid' : 'grid-outline';
+          else if (route.name === 'Cart') iconName = focused ? 'cart' : 'cart-outline';
+          else if (route.name === 'Orders') iconName = focused ? 'receipt' : 'receipt-outline';
+          else if (route.name === 'Profile') iconName = focused ? 'person' : 'person-outline';
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: '#D4638F',
+        tabBarInactiveTintColor: '#2C3E50',
+        headerShown: false,
+      })}
+    >
+      <Tab.Screen name="Home" component={HomeStack} />
+      <Tab.Screen name="Menu" component={MenuStack} />
+      <Tab.Screen name="Cart" component={CartStack} />
+      <Tab.Screen name="Orders" component={OrdersScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} />
+    </Tab.Navigator>
+  );
+}
+
+// src/screens/OnboardingScreen.tsx
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function OnboardingScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Onboarding Screen</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' },
+  text: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+});
+
+// src/screens/auth/SignInScreen.tsx
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function SignInScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Sign In Screen</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' },
+  text: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+});
+
+// src/screens/auth/SignUpScreen.tsx
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function SignUpScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Sign Up Screen</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' },
+  text: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+});
+
+// src/screens/main/HomeScreen.tsx
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function HomeScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Home Screen</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' },
+  text: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+});
+
+// src/screens/main/MenuScreen.tsx
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function MenuScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Menu Screen</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' },
+  text: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+});
+
+// src/screens/main/CartScreen.tsx
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function CartScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Cart Screen</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' },
+  text: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+});
+
+// src/screens/main/OrdersScreen.tsx
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function OrdersScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Orders Screen</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' },
+  text: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+});
+
+// src/screens/main/ProfileScreen.tsx
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function ProfileScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Profile Screen</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' },
+  text: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+});
+
+// src/screens/main/ProductDetailScreen.tsx
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function ProductDetailScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Product Detail Screen</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' },
+  text: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+});
+
+// src/screens/main/CheckoutScreen.tsx
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+export default function CheckoutScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>Checkout Screen</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E7' },
+  text: { fontSize: 24, fontWeight: 'bold', color: '#2C3E50' },
+});
